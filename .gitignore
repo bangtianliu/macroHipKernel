@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+# HSACO
+a.out
+*.hsaco
