@@ -7,10 +7,17 @@
 #include "utils.h"
 #include <chrono>
 
-extern "C" __device__ __attribute__((const)) half __ockl_wfred_max_f16(half);
-
 using float16_t = uint16_t;
 using float32_t = float;
+
+// Comment/uncomment one of these to control output/index type.
+#define OUTPUT_TY int64_t
+// #define OUTPUT_TY int32_t
+
+// Comment/uncomment one of these to control input/float type.
+#define INPUT_TY float32_t
+// #define INPUT_TY float16_t
+
 constexpr uint32_t recordRuns = 100u;
 constexpr int ARGMAX_LABEL = 7243;
 
@@ -49,7 +56,7 @@ void benchmark_module(size_t reductionSize) {
 
     // Initialize input matrices
     // TODO: Add support for parallel dimension.
-    std::vector<float16_t> inputBuffer(batchSize * reductionSize);
+    std::vector<INPUT_TY> inputBuffer(batchSize * reductionSize);
     std::vector<size_t> outputBuffer(batchSize);
 
     fillIndex(inputBuffer.data(), batchSize, reductionSize);
@@ -57,12 +64,12 @@ void benchmark_module(size_t reductionSize) {
     std::cout << "Initializing device data..." << std::endl;
 
     // Allocate and copy device memory
-    half* d_input;
-    int32_t* d_output;
+    INPUT_TY *d_input;
+    OUTPUT_TY *d_output;
     size_t* d_reductionSize;
 
-    const size_t bytesInput = inputBuffer.size() * sizeof(float16_t);
-    const size_t bytesOutput = outputBuffer.size() * sizeof(int32_t);
+    const size_t bytesInput = inputBuffer.size() * sizeof(INPUT_TY);
+    const size_t bytesOutput = outputBuffer.size() * sizeof(OUTPUT_TY);
 
     CHECK_HIP_ERROR(hipMalloc(&d_input, bytesInput));
     CHECK_HIP_ERROR(hipMalloc(&d_output, bytesOutput));
@@ -78,7 +85,7 @@ void benchmark_module(size_t reductionSize) {
       std::cout<<"Failed to load module!\n";
       return;
     }
-    if (hipModuleGetFunction(&kernel, module, "argmax_F16I32") != hipSuccess) {
+    if (hipModuleGetFunction(&kernel, module, "argmax_F32I64") != hipSuccess) {
       std::cout<<"Failed to get function!\n";
       return;
     }

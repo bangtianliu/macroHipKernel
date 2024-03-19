@@ -34,3 +34,4 @@
 # HSACO
 a.out
 *.hsaco
+*.hex
