@@ -34,6 +34,8 @@ static inline void fillIndex(DataT* mat, uint32_t m, uint32_t n)
     }
 }
 
+#define IREE_HAL_ROCM_MAX_KERNEL_ARG 128
+
 std::vector<char> readFileIntoVector(const std::string& filename) {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
 
@@ -66,17 +68,14 @@ void benchmark_module(size_t reductionSize) {
     // Allocate and copy device memory
     INPUT_TY *d_input;
     OUTPUT_TY *d_output;
-    size_t* d_reductionSize;
 
     const size_t bytesInput = inputBuffer.size() * sizeof(INPUT_TY);
     const size_t bytesOutput = outputBuffer.size() * sizeof(OUTPUT_TY);
 
     CHECK_HIP_ERROR(hipMalloc(&d_input, bytesInput));
     CHECK_HIP_ERROR(hipMalloc(&d_output, bytesOutput));
-    CHECK_HIP_ERROR(hipMalloc(&d_reductionSize, sizeof(size_t)));
 
     CHECK_HIP_ERROR(hipMemcpy(d_input, inputBuffer.data(), bytesInput, hipMemcpyHostToDevice));
-    CHECK_HIP_ERROR(hipMemcpy(d_reductionSize, &reductionSize, sizeof(size_t), hipMemcpyHostToDevice));
 
     hipModule_t module;
     hipFunction_t kernel;
@@ -95,11 +94,14 @@ void benchmark_module(size_t reductionSize) {
     size_t block_dimy = 1;
     int gridX = batchSize;
     int gridY = 1;
-    void* kernelParam[] = {d_input, d_output, d_reductionSize};
-    auto size = sizeof(kernelParam);
-    void* config[] = {HIP_LAUNCH_PARAM_BUFFER_POINTER, &kernelParam,
-                      HIP_LAUNCH_PARAM_BUFFER_SIZE, &size,
-                      HIP_LAUNCH_PARAM_END};
+    void** kernelParam = (void**)malloc(IREE_HAL_ROCM_MAX_KERNEL_ARG * sizeof(void*));
+    hipDeviceptr_t* device_ptrs = (hipDeviceptr_t*)malloc(IREE_HAL_ROCM_MAX_KERNEL_ARG * sizeof(hipDeviceptr_t));
+    for (size_t i = 0; i < IREE_HAL_ROCM_MAX_KERNEL_ARG; i++) {
+      kernelParam[i] = &device_ptrs[i];
+    }
+    *((hipDeviceptr_t*)kernelParam[0]) = d_input;
+    *((hipDeviceptr_t*)kernelParam[1]) = d_output;
+    *((uint32_t*)kernelParam[2]) = static_cast<uint32_t>(reductionSize);
 
     std::cout << "Launching Argmax kernel..." << std::endl;
     hipEvent_t startEvent, stopEvent;
@@ -110,9 +112,13 @@ void benchmark_module(size_t reductionSize) {
 
     // Launching Kernel Begin
     for (uint32_t i = 0; i < recordRuns; ++i) {
+      // assert (hipModuleLaunchKernel(
+      //     kernel, gridX, gridY, 1, block_dimx, block_dimy, 1,
+      //     0, nullptr, nullptr, config) == 0);
       assert (hipModuleLaunchKernel(
-          kernel, gridX, gridY, 1, block_dimx, block_dimy, 1,
-          0, nullptr, nullptr, config) == 0);
+          kernel, gridX, gridY, 1,
+          block_dimx, block_dimy, 1, 0, 0,
+          kernelParam, NULL) == 0);
     }
     CHECK_HIP_ERROR(hipEventRecord(stopEvent));
     CHECK_HIP_ERROR(hipEventSynchronize(stopEvent));
