@@ -17,13 +17,6 @@
 // HACK: Currently this must match EXACTLY with the executable target for the
 // custom kernel. For things to be truly portable, we need to be able to compare
 // executable configurations.
-#spirv_target = #hal.executable.target<"vulkan-spirv", "vulkan-spirv-fb", {
-  spirv.target_env = #spirv.target_env<
-    #spirv.vce<v1.3, [Shader, GroupNonUniform, GroupNonUniformArithmetic, GroupNonUniformBallot],
-                     [SPV_KHR_storage_buffer_storage_class, SPV_KHR_variable_pointers]>,
-    #spirv.resource_limits<max_compute_workgroup_size = [128, 128, 64], subgroup_size = 64>
-  >
-}>
 
 // The target devices that the program will run on. We can compile and run with
 // multiple targets, but this example is maintaining an implicit requirement
@@ -31,11 +24,12 @@
 // hence we only support vulkan here. It is possible to hand author a custom
 // kernel that supports multiple targets by specifying an object per-target, but
 // that requires authoring the kernel for multiple targets.
-#vulkan_target = #hal.device.target<"vulkan", [#spirv_target]>
+#executable_target_rocm_hsaco_fb = #hal.executable.target<"rocm", "rocm-hsaco-fb", {target_arch = "gfx1100", ukernels = "none"}>
+#device_target_rocm = #hal.device.target<"rocm", {legacy_sync}, [#executable_target_rocm_hsaco_fb]>
 
 #map = affine_map<(d0, d1) -> (d0, d1)>
 #map1 = affine_map<(d0, d1) -> (d0)>
-module @example attributes {hal.device.targets = [#vulkan_target]} {
+module @example attributes {hal.device.targets = [#device_target_rocm]} {
 
   // CHECK-LABEL: EXEC @mixed_invocation
   func.func @mixed_invocation(%arg0: tensor<1x128xf32>, %arg1: tensor<1x128xf32>) -> tensor<1xi64> {
