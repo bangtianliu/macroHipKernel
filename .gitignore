@@ -35,3 +35,5 @@
 a.out
 *.hsaco
 *.hex
+*.vmfb
+*.npy

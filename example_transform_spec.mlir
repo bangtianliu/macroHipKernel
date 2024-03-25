@@ -44,6 +44,7 @@ module attributes {transform.with_named_sequence} {
           }>
         ]
       })
+      attributes {subgroupSize = 32, workgroup_size = [32 : index, 1 : index, 1 : index]}
     util.return %4 : tensor<1xi64>
   }
 
