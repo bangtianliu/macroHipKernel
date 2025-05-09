@@ -1,19 +1,15 @@
 #pragma once
+#include <cstring>
 
 #define FP16_EXP_BITS (5)
 
 #ifndef CHECK_HIP_ERROR
-#define CHECK_HIP_ERROR(status)                   \
-    if(status != hipSuccess)                      \
-    {                                             \
-        fprintf(stderr,                           \
-                "hip error: '%s'(%d) at %s:%d\n", \
-                hipGetErrorString(status),        \
-                status,                           \
-                __FILE__,                         \
-                __LINE__);                        \
-        exit(EXIT_FAILURE);                       \
-    }
+#define CHECK_HIP_ERROR(status)                                                \
+  if (status != hipSuccess) {                                                  \
+    fprintf(stderr, "hip error: '%s'(%d) at %s:%d\n",                          \
+            hipGetErrorString(status), status, __FILE__, __LINE__);            \
+    exit(EXIT_FAILURE);                                                        \
+  }
 #endif
 
 // Queries for [[attribute]] identifiers in modern compilers.
@@ -21,7 +17,7 @@
 #define IREE_HAVE_ATTRIBUTE(x) __has_attribute(x)
 #else
 #define IREE_HAVE_ATTRIBUTE(x) 0
-#endif  // __has_attribute
+#endif // __has_attribute
 
 #if IREE_HAVE_ATTRIBUTE(maybe_unused) && defined(__clang__)
 #define IREE_ATTRIBUTE_UNUSED __attribute__((maybe_unused))
@@ -29,19 +25,19 @@
 #define IREE_ATTRIBUTE_UNUSED __attribute__((unused))
 #else
 #define IREE_ATTRIBUTE_UNUSED
-#endif  // IREE_HAVE_ATTRIBUTE(maybe_unused / unused)
+#endif // IREE_HAVE_ATTRIBUTE(maybe_unused / unused)
 
-#define IREE_MATH_FP_FORMAT_CONSTANTS(prefix, bits, ebits)                   \
-  const int prefix##exp_bits IREE_ATTRIBUTE_UNUSED = ebits;                  \
-  const int prefix##mantissa_bits IREE_ATTRIBUTE_UNUSED =                    \
-      bits - 1 - prefix##exp_bits;                                           \
-  const int prefix##sign_shift IREE_ATTRIBUTE_UNUSED = bits - 1;             \
-  const int prefix##exp_shift IREE_ATTRIBUTE_UNUSED = prefix##mantissa_bits; \
-  const int prefix##sign_mask IREE_ATTRIBUTE_UNUSED = 1u                     \
-                                                      << prefix##sign_shift; \
-  const int prefix##mantissa_mask IREE_ATTRIBUTE_UNUSED =                    \
-      (1u << prefix##exp_shift) - 1;                                         \
-  const int prefix##exp_mask IREE_ATTRIBUTE_UNUSED =                         \
+#define IREE_MATH_FP_FORMAT_CONSTANTS(prefix, bits, ebits)                     \
+  const int prefix##exp_bits IREE_ATTRIBUTE_UNUSED = ebits;                    \
+  const int prefix##mantissa_bits IREE_ATTRIBUTE_UNUSED =                      \
+      bits - 1 - prefix##exp_bits;                                             \
+  const int prefix##sign_shift IREE_ATTRIBUTE_UNUSED = bits - 1;               \
+  const int prefix##exp_shift IREE_ATTRIBUTE_UNUSED = prefix##mantissa_bits;   \
+  const int prefix##sign_mask IREE_ATTRIBUTE_UNUSED = 1u                       \
+                                                      << prefix##sign_shift;   \
+  const int prefix##mantissa_mask IREE_ATTRIBUTE_UNUSED =                      \
+      (1u << prefix##exp_shift) - 1;                                           \
+  const int prefix##exp_mask IREE_ATTRIBUTE_UNUSED =                           \
       (1u << prefix##sign_shift) - (1u << prefix##exp_shift);
 
 static inline float half2float(uint16_t f16_value, int exp_bits) {
@@ -149,18 +145,16 @@ static inline uint16_t float2half(float value, int exp_bits) {
 
 using float16_t = uint16_t;
 using float32_t = float;
+// using bf16_t = hip_bfloat16;
 template <typename DataT>
-static inline void fillRand(DataT* mat, uint32_t m, uint32_t n)
-{
-    for(int i = 0; i < m; ++i)
-    {
-        for(int j = 0; j < n; j++)
-        {
-          // Random values normalized such that output is between 0 and 1
-          float original = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-          float16_t value = float2half(original, FP16_EXP_BITS);
-                mat[i * n + j] = static_cast<DataT>(value);
-        }
+static inline void fillRand(DataT *mat, uint32_t m, uint32_t n) {
+  for (int i = 0; i < m; ++i) {
+    for (int j = 0; j < n; j++) {
+      // Random values normalized such that output is between 0 and 1
+      float original =
+          static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+      float16_t value = float2half(original, FP16_EXP_BITS);
+      mat[i * n + j] = static_cast<DataT>(value);
     }
+  }
 }
-
